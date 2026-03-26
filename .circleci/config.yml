@@ -47,11 +47,18 @@ commands:
       - run:
           name: Upload artifacts to S3
           command: |
+            # Naming convention: lang-service-stage-deployNumber-datetime
+            # Example: node-api-integration-1234-20240115_120000
+            
+            DEPLOY_NUMBER=${CIRCLE_BUILD_NUM}
+            DATETIME=$(date +%Y%m%d_%H%M%S)
+            S3_PATH="s3://company-test-results/node-api-integration-${CIRCLE_BRANCH}-${DEPLOY_NUMBER}-${DATETIME}/"
+            
             # Upload test results to S3 data lake
-            aws s3 cp ./test-results/ s3://company-test-results/${CIRCLE_BRANCH}/${CIRCLE_BUILD_NUM}/ \
+            aws s3 cp ./test-results/ "${S3_PATH}" \
               --recursive \
               --exclude "*.log" \
-              && echo "Artifacts uploaded to S3"
+              && echo "Artifacts uploaded to: ${S3_PATH}"
 
 # Define jobs
 jobs:
