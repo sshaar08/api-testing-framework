@@ -3,6 +3,12 @@ version: 2.1
 # Docker image from Artifactory
 # Image is built from api-test-core/docker/Dockerfile
 # Published to: artifacts.company.com/api-test-core:2.1.0
+#
+# Authentication:
+# - ARTIFACTORY_USER: Artifactory username (set in CircleCI context)
+# - ARTIFACTORY_TOKEN: Artifactory API token (set in CircleCI context)
+#   This token is used to authenticate when pulling private npm packages
+#   and when logging into Docker registry
 
 # Define reusable commands
 commands:
@@ -12,6 +18,7 @@ commands:
           name: Pull Docker image from Artifactory
           command: |
             echo "Logging into Artifactory..."
+            # ARTIFACTORY_TOKEN env var contains the auth token
             echo ${ARTIFACTORY_TOKEN} | docker login -u ${ARTIFACTORY_USER} --password-stdin artifacts.company.com
             
             echo "Pulling test image..."
@@ -24,6 +31,7 @@ commands:
       - run:
           name: Configure npm registry
           command: |
+            # ARTIFACTORY_TOKEN env var used to authenticate npm pull
             npm config set registry=https://artifacts.company.com/npm/
             npm config set //artifacts.company.com/:_authToken=${ARTIFACTORY_TOKEN}
 
