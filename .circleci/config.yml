@@ -1,0 +1,158 @@
+version: 2.1
+
+# Define reusable commands
+commands:
+  setup-nodejs:
+    steps:
+      - run:
+          name: Setup Node.js environment
+          command: |
+            node_version=18
+            curl -fsSL "https://deb.nodesource.com/setup_${node_version}.x" | bash -
+            apt-get install -y nodejs
+            npm install -g pnpm@8
+
+  configure-artifactory:
+    steps:
+      - run:
+          name: Configure Artifactory registry
+          command: |
+            echo "Configuring npm to use Artifactory..."
+            npm config set registry=https://artifacts.company.com/npm/
+            npm config set //artifacts.company.com/:_authToken=${ARTIFACTORY_TOKEN}
+
+  install-dependencies:
+    steps:
+      - run:
+          name: Install dependencies from Artifactory
+          command: |
+            pnpm install --frozen-lockfile
+
+  run-tests:
+    steps:
+      - run:
+          name: Run integration tests
+          command: |
+            pnpm run test:integration
+
+  generate-artifacts:
+    steps:
+      - run:
+          name: Generate JUnit XML artifacts
+          command: |
+            pnpm run test:integration --reporter=junit --reporter-output=./test-results/
+
+  upload-to-s3:
+    steps:
+      - run:
+          name: Upload artifacts to S3
+          command: |
+            # Upload test results to S3 data lake
+            aws s3 cp ./test-results/ s3://company-test-results/${CIRCLE_BRANCH}/${CIRCLE_BUILD_NUM}/ \
+              --recursive \
+              --exclude "*.log" \
+              && echo "Artifacts uploaded to S3"
+
+# Define jobs
+jobs:
+  # Smoke tests - fast, critical path only
+  smoke-tests:
+    docker:
+      - image: cimg/node:18-browsers
+    environment:
+      - NODE_ENV: test
+      - CIRCLE_BRANCH: << pipeline.git.branch >>
+      - CIRCLE_BUILD_NUM: << pipeline.number >>
+    steps:
+      - checkout
+      - setup-nodejs
+      - configure-artifactory
+      - install-dependencies
+      - run:
+          name: Run smoke tests
+          command: pnpm run test:smoke
+      - store_test_results:
+          path: ./test-results
+          when: always
+
+  # Full integration test suite
+  integration-tests:
+    docker:
+      - image: cimg/node:18-browsers
+    environment:
+      - NODE_ENV: test
+      - CIRCLE_BRANCH: << pipeline.git.branch >>
+      - CIRCLE_BUILD_NUM: << pipeline.number >>
+    steps:
+      - checkout
+      - setup-nodejs
+      - configure-artifactory
+      - install-dependencies
+      - run-tests
+      - generate-artifacts
+      - upload-to-s3
+      - store_test_results:
+          path: ./test-results
+          when: always
+      - store_artifacts:
+          path: ./test-results
+          when: always
+
+  # Nightly comprehensive run
+  nightly-tests:
+    docker:
+      - image: cimg/node:18-browsers
+    environment:
+      - NODE_ENV: test
+    steps:
+      - checkout
+      - setup-nodejs
+      - configure-artifactory
+      - install-dependencies
+      - run:
+          name: Run full test suite (nightly)
+          command: pnpm run test:all
+      - generate-artifacts
+      - upload-to-s3
+
+# Define workflows
+workflows:
+  # On every PR and merge to main
+  test-on-pr:
+    jobs:
+      - smoke-tests:
+          filters:
+            branches:
+              ignore:
+                - main
+      - integration-tests:
+          requires:
+            - smoke-tests
+          filters:
+            branches:
+              only:
+                - main
+                - /^feature/.*/
+                - /^fix/.*/
+
+  # Nightly run every day at midnight
+  nightly:
+    triggers:
+      - schedule:
+          cron: "0 0 * * *"
+          filters:
+            branches:
+              only:
+                - main
+    jobs:
+      - nightly-tests
+
+  # Coverage check before merge
+  coverage-check:
+    jobs:
+      - integration-tests:
+          context: artifactory
+          filters:
+            branches:
+              only:
+                - main
