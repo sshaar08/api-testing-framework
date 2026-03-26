@@ -1,74 +1,71 @@
 version: 2.1
 
 # ==============================================================================
-# Docker Image: Stored in Nexus (Platform team owned)
-# - Image built from api-test-core/docker/Dockerfile
-# - Published to: nexus.company.com/api-test-core:2.1.0
-# - Image does NOT contain npm packages (pulled at runtime)
-# - Same image shared across all teams (each pulls their own packages)
+# CircleCI Pipeline for API Integration Tests
+#
+# ASSUMPTION: Commands run INSIDE the Docker container
+# - Image pulled from Nexus before this pipeline
+# - We're already in the container when these commands run
+# ==============================================================================
+#
+# Storage:
+# - Docker Image: Nexus (nexus.company.com/api-test-core:2.1.0)
+# - npm Packages: Artifactory (pulled at runtime)
 #
 # Authentication:
-# - NEXUS_USER: Nexus username (set in CircleCI context)
-# - NEXUS_TOKEN: Nexus auth token (set in CircleCI context)
-#
-# npm Packages: Pulled at runtime via Artifactory
-# - ARTIFACTORY_USER: Artifactory username for npm packages
-# - ARTIFACTORY_TOKEN: Artifactory token for npm packages
+# - NEXUS_TOKEN: For pulling Docker image from Nexus
+# - ARTIFACTORY_TOKEN: For pulling npm packages from Artifactory
 # ==============================================================================
 
 # Define reusable commands
 commands:
-  setup-docker-image:
-    steps:
-      - run:
-          name: Pull Docker image from Nexus
-          command: |
-            echo "Logging into Nexus..."
-            # NEXUS_TOKEN env var contains the auth token
-            echo ${NEXUS_TOKEN} | docker login -u ${NEXUS_USER} --password-stdin nexus.company.com
-            
-            echo "Pulling test image..."
-            docker pull nexus.company.com/api-test-core:2.1.0
-            
-            echo "Image pulled successfully"
-
   configure-artifactory:
     steps:
       - run:
           name: Configure npm registry (Artifactory)
           command: |
-            # npm packages pulled at runtime from Artifactory
-            # Teams can use different versions of @company/api-helpers
+            # We're already IN the container
+            # Just configure npm to use Artifactory
             npm config set registry=https://artifacts.company.com/npm/
             npm config set //artifacts.company.com/:_authToken=${ARTIFACTORY_TOKEN}
 
-  run-tests:
+  install-packages:
+    steps:
+      - run:
+          name: Install npm packages from Artifactory
+          command: |
+            # npm packages pulled at runtime from Artifactory
+            # Each team can use different versions
+            pnpm install --frozen-lockfile
+
+  run-smoke-tests:
+    steps:
+      - run:
+          name: Run smoke tests
+          command: |
+            pnpm run test:smoke
+
+  run-integration-tests:
     steps:
       - run:
           name: Run integration tests
           command: |
-            # npm packages pulled at runtime inside container
-            # Same image, different packages per team
-            docker run --rm \
-              -e ARTIFACTORY_TOKEN=${ARTIFACTORY_TOKEN} \
-              -e ARTIFACTORY_USER=${ARTIFACTORY_USER} \
-              -e NODE_ENV=test \
-              nexus.company.com/api-test-core:2.1.0 \
-              pnpm run test:integration
+            pnpm run test:integration
+
+  run-all-tests:
+    steps:
+      - run:
+          name: Run full test suite
+          command: |
+            pnpm run test:all
 
   generate-artifacts:
     steps:
       - run:
           name: Generate JUnit XML artifacts
           command: |
-            # npm packages pulled at runtime, image just provides Node.js runtime
-            docker run --rm \
-              -v ./test-results:/app/test-results \
-              -e ARTIFACTORY_TOKEN=${ARTIFACTORY_TOKEN} \
-              -e ARTIFACTORY_USER=${ARTIFACTORY_USER} \
-              -e NODE_ENV=test \
-              nexus.company.com/api-test-core:2.1.0 \
-              pnpm run test:integration --reporter=junit --reporter-output=/app/test-results/
+            # Generate test results in JUnit XML format
+            pnpm run test:integration --reporter=junit --reporter-output=./test-results/
 
   upload-to-s3:
     steps:
@@ -78,9 +75,9 @@ commands:
             # Naming convention: lang-service-stage-deployNumber-datetime
             # Example: node-api-integration-main-1234-20240115_120000
             
-            DEPLOY_NUMBER=${CIRCLE_BUILD_NUM}
+            DEPLOY_NUMBER=${CIRCLE_BUILD_NUM:-0}
             DATETIME=$(date +%Y%m%d_%H%M%S)
-            S3_PATH="s3://company-test-results/node-api-integration-${CIRCLE_BRANCH}-${DEPLOY_NUMBER}-${DATETIME}/"
+            S3_PATH="s3://company-test-results/node-api-integration-${CIRCLE_BRANCH:-main}-${DEPLOY_NUMBER}-${DATETIME}/"
             
             # Upload test results to S3 data lake
             aws s3 cp ./test-results/ "${S3_PATH}" \
@@ -88,40 +85,41 @@ commands:
               --exclude "*.log" \
               && echo "Artifacts uploaded to: ${S3_PATH}"
 
-# Define jobs
+# ==============================================================================
+# Jobs (assume we're already inside the Docker container)
+# ==============================================================================
+
 jobs:
   # Smoke tests - fast, critical path only
   smoke-tests:
+    docker:
+      - image: nexus.company.com/api-test-core:2.1.0
     environment:
       - NODE_ENV: test
       - CIRCLE_BRANCH: << pipeline.git.branch >>
       - CIRCLE_BUILD_NUM: << pipeline.number >>
     steps:
       - checkout
-      - setup-docker-image
-      - run:
-          name: Run smoke tests
-          command: |
-            docker run --rm \
-              -e ARTIFACTORY_TOKEN=${ARTIFACTORY_TOKEN} \
-              -e ARTIFACTORY_USER=${ARTIFACTORY_USER} \
-              -e NODE_ENV=test \
-              nexus.company.com/api-test-core:2.1.0 \
-              pnpm run test:smoke
+      - configure-artifactory
+      - install-packages
+      - run-smoke-tests
       - store_test_results:
           path: ./test-results
           when: always
 
   # Full integration test suite
   integration-tests:
+    docker:
+      - image: nexus.company.com/api-test-core:2.1.0
     environment:
       - NODE_ENV: test
       - CIRCLE_BRANCH: << pipeline.git.branch >>
       - CIRCLE_BUILD_NUM: << pipeline.number >>
     steps:
       - checkout
-      - setup-docker-image
-      - run-tests
+      - configure-artifactory
+      - install-packages
+      - run-integration-tests
       - generate-artifacts
       - upload-to-s3
       - store_test_results:
@@ -133,24 +131,22 @@ jobs:
 
   # Nightly comprehensive run
   nightly-tests:
+    docker:
+      - image: nexus.company.com/api-test-core:2.1.0
     environment:
       - NODE_ENV: test
     steps:
       - checkout
-      - setup-docker-image
-      - run:
-          name: Run full test suite (nightly)
-          command: |
-            docker run --rm \
-              -e ARTIFACTORY_TOKEN=${ARTIFACTORY_TOKEN} \
-              -e ARTIFACTORY_USER=${ARTIFACTORY_USER} \
-              -e NODE_ENV=test \
-              nexus.company.com/api-test-core:2.1.0 \
-              pnpm run test:all
+      - configure-artifactory
+      - install-packages
+      - run-all-tests
       - generate-artifacts
       - upload-to-s3
 
-# Define workflows
+# ==============================================================================
+# Workflows
+# ==============================================================================
+
 workflows:
   # On every PR and merge to main
   test-on-pr:
