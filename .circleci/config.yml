@@ -1,46 +1,54 @@
 version: 2.1
 
+# Docker image from Artifactory
+# Image is built from api-test-core/docker/Dockerfile
+# Published to: artifacts.company.com/api-test-core:2.1.0
+
 # Define reusable commands
 commands:
-  setup-nodejs:
+  setup-docker-image:
     steps:
       - run:
-          name: Setup Node.js environment
+          name: Pull Docker image from Artifactory
           command: |
-            node_version=18
-            curl -fsSL "https://deb.nodesource.com/setup_${node_version}.x" | bash -
-            apt-get install -y nodejs
-            npm install -g pnpm@8
+            echo "Logging into Artifactory..."
+            echo ${ARTIFACTORY_TOKEN} | docker login -u ${ARTIFACTORY_USER} --password-stdin artifacts.company.com
+            
+            echo "Pulling test image..."
+            docker pull artifacts.company.com/api-test-core:2.1.0
+            
+            echo "Image pulled successfully"
 
   configure-artifactory:
     steps:
       - run:
-          name: Configure Artifactory registry
+          name: Configure npm registry
           command: |
-            echo "Configuring npm to use Artifactory..."
             npm config set registry=https://artifacts.company.com/npm/
             npm config set //artifacts.company.com/:_authToken=${ARTIFACTORY_TOKEN}
-
-  install-dependencies:
-    steps:
-      - run:
-          name: Install dependencies from Artifactory
-          command: |
-            pnpm install --frozen-lockfile
 
   run-tests:
     steps:
       - run:
           name: Run integration tests
           command: |
-            pnpm run test:integration
+            docker run --rm \
+              -e ARTIFACTORY_TOKEN=${ARTIFACTORY_TOKEN} \
+              -e NODE_ENV=test \
+              artifacts.company.com/api-test-core:2.1.0 \
+              pnpm run test:integration
 
   generate-artifacts:
     steps:
       - run:
           name: Generate JUnit XML artifacts
           command: |
-            pnpm run test:integration --reporter=junit --reporter-output=./test-results/
+            docker run --rm \
+              -v ./test-results:/app/test-results \
+              -e ARTIFACTORY_TOKEN=${ARTIFACTORY_TOKEN} \
+              -e NODE_ENV=test \
+              artifacts.company.com/api-test-core:2.1.0 \
+              pnpm run test:integration --reporter=junit --reporter-output=/app/test-results/
 
   upload-to-s3:
     steps:
@@ -48,7 +56,7 @@ commands:
           name: Upload artifacts to S3
           command: |
             # Naming convention: lang-service-stage-deployNumber-datetime
-            # Example: node-api-integration-1234-20240115_120000
+            # Example: node-api-integration-main-1234-20240115_120000
             
             DEPLOY_NUMBER=${CIRCLE_BUILD_NUM}
             DATETIME=$(date +%Y%m%d_%H%M%S)
@@ -64,37 +72,34 @@ commands:
 jobs:
   # Smoke tests - fast, critical path only
   smoke-tests:
-    docker:
-      - image: cimg/node:18-browsers
     environment:
       - NODE_ENV: test
       - CIRCLE_BRANCH: << pipeline.git.branch >>
       - CIRCLE_BUILD_NUM: << pipeline.number >>
     steps:
       - checkout
-      - setup-nodejs
-      - configure-artifactory
-      - install-dependencies
+      - setup-docker-image
       - run:
           name: Run smoke tests
-          command: pnpm run test:smoke
+          command: |
+            docker run --rm \
+              -e ARTIFACTORY_TOKEN=${ARTIFACTORY_TOKEN} \
+              -e NODE_ENV=test \
+              artifacts.company.com/api-test-core:2.1.0 \
+              pnpm run test:smoke
       - store_test_results:
           path: ./test-results
           when: always
 
   # Full integration test suite
   integration-tests:
-    docker:
-      - image: cimg/node:18-browsers
     environment:
       - NODE_ENV: test
       - CIRCLE_BRANCH: << pipeline.git.branch >>
       - CIRCLE_BUILD_NUM: << pipeline.number >>
     steps:
       - checkout
-      - setup-nodejs
-      - configure-artifactory
-      - install-dependencies
+      - setup-docker-image
       - run-tests
       - generate-artifacts
       - upload-to-s3
@@ -107,18 +112,19 @@ jobs:
 
   # Nightly comprehensive run
   nightly-tests:
-    docker:
-      - image: cimg/node:18-browsers
     environment:
       - NODE_ENV: test
     steps:
       - checkout
-      - setup-nodejs
-      - configure-artifactory
-      - install-dependencies
+      - setup-docker-image
       - run:
           name: Run full test suite (nightly)
-          command: pnpm run test:all
+          command: |
+            docker run --rm \
+              -e ARTIFACTORY_TOKEN=${ARTIFACTORY_TOKEN} \
+              -e NODE_ENV=test \
+              artifacts.company.com/api-test-core:2.1.0 \
+              pnpm run test:all
       - generate-artifacts
       - upload-to-s3
 
