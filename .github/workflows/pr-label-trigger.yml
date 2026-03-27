@@ -1,0 +1,93 @@
+name: Trigger Integration Tests
+
+on:
+  pull_request:
+    types: [labeled]
+
+# ==============================================================================
+# Configuration
+# All values can be overridden via environment variables or GitHub Actions variables
+# ==============================================================================
+env:
+  # CircleCI configuration - can be overridden via secrets/GitHub vars
+  CIRCLECI_PROJECT: gh/${{ github.repository }}
+  CIRCLECI_API_URL: https://circleci.com/api/v2/project/${CIRCLECI_PROJECT}/pipeline
+  
+  # Service configuration
+  SERVICE_NAME: api-test-core
+  
+  # Workflow to trigger
+  CIRCLECI_WORKFLOW: integration-tests
+
+jobs:
+  trigger-integration-tests:
+    # Only trigger when the specific label is added
+    if: github.event.label.name == 'deployAndRunTests'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger CircleCI Pipeline
+        env:
+          # CircleCI token from GitHub Secrets
+          CIRCLECI_TOKEN: ${{ secrets.CIRCLECI_TOKEN }}
+          
+          # PR context information
+          COMMIT_HASH: ${{ github.event.pull_request.head.sha }}
+          BRANCH_NAME: ${{ github.event.pull_request.head.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          
+          # Configurable values (can be overridden)
+          SERVICE_NAME: ${{ env.SERVICE_NAME }}
+          CIRCLECI_API_URL: ${{ env.CIRCLECI_API_URL }}
+        run: |
+          echo "=== Triggering CircleCI Integration Tests ==="
+          echo "Repository: ${{ github.repository }}"
+          echo "Branch: ${BRANCH_NAME}"
+          echo "Commit: ${COMMIT_HASH}"
+          echo "PR #: ${PR_NUMBER}"
+          echo "Service: ${SERVICE_NAME}"
+          echo "==============================================="
+          
+          # Trigger CircleCI pipeline
+          response=$(curl -s -w "\n%{http_code}" -X POST "${CIRCLECI_API_URL}" \
+            -H "Circle-Token: ${CIRCLECI_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d '{
+              "branch": "'"${BRANCH_NAME}"'",
+              "revision": "'"${COMMIT_HASH}"'",
+              "parameters": {
+                "service_name": "'"${SERVICE_NAME}"'",
+                "commit_hash": "'"${COMMIT_HASH}"'",
+                "pr_number": "'"${PR_NUMBER}"'",
+                "run_integration_tests": true
+              }
+            }')
+          
+          # Parse response
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          
+          echo "HTTP Status: ${http_code}"
+          echo "Response: ${body}"
+          
+          # Check if successful
+          if [ "$http_code" = "202" ]; then
+            echo "✓ CircleCI pipeline triggered successfully"
+          else
+            echo "✗ Failed to trigger CircleCI pipeline"
+            exit 1
+          fi
+
+      - name: Post Status Comment
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          COMMIT_HASH: ${{ github.event.pull_request.head.sha }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: process.env.PR_NUMBER,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🚀 Integration Tests Triggered\n\nCircleCI integration tests have been triggered for:\n- **Commit**: \`${process.env.COMMIT_HASH}\`\n- **Branch**: \`${context.payload.pull_request.head.ref}\`\n\nView progress on [CircleCI](https://app.circleci.com/pipelines/github/${context.repo.owner}/${context.repo.repo})`
+            })

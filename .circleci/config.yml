@@ -17,6 +17,30 @@ version: 2.1
 # - ARTIFACTORY_TOKEN: For pulling npm packages from Artifactory
 # ==============================================================================
 
+# ==============================================================================
+# Pipeline Parameters
+# All configurable via environment variables or GitHub Actions trigger
+# ==============================================================================
+parameters:
+  service_name:
+    type: string
+    default: "api-test-core"
+  commit_hash:
+    type: string
+    default: ""
+  pr_number:
+    type: string
+    default: ""
+  run_integration_tests:
+    type: boolean
+    default: false
+  run_smoke_tests:
+    type: boolean
+    default: false
+  run_nightly_tests:
+    type: boolean
+    default: false
+
 # Define reusable commands
 commands:
   configure-artifactory:
@@ -77,6 +101,7 @@ commands:
             
             DEPLOY_NUMBER=${CIRCLE_BUILD_NUM:-0}
             DATETIME=$(date +%Y%m%d_%H%M%S)
+            SERVICE_NAME=${SERVICE_NAME:-<< pipeline.parameters.service_name >>}
             S3_PATH="s3://company-test-results/node-api-integration-${CIRCLE_BRANCH:-main}-${DEPLOY_NUMBER}-${DATETIME}/"
             
             # Upload test results to S3 data lake
@@ -84,6 +109,19 @@ commands:
               --recursive \
               --exclude "*.log" \
               && echo "Artifacts uploaded to: ${S3_PATH}"
+
+  log-trigger-context:
+    steps:
+      - run:
+          name: Log trigger context
+          command: |
+            echo "=== Pipeline Trigger Context ==="
+            echo "Service Name: << pipeline.parameters.service_name >>"
+            echo "Commit Hash: << pipeline.parameters.commit_hash >>"
+            echo "PR Number: << pipeline.parameters.pr_number >>"
+            echo "Branch: << pipeline.git.branch >>"
+            echo "Build Number: << pipeline.number >>"
+            echo "================================"
 
 # ==============================================================================
 # Jobs (assume we're already inside the Docker container)
@@ -98,8 +136,12 @@ jobs:
       - NODE_ENV: test
       - CIRCLE_BRANCH: << pipeline.git.branch >>
       - CIRCLE_BUILD_NUM: << pipeline.number >>
+      - SERVICE_NAME: << pipeline.parameters.service_name >>
+      - COMMIT_HASH: << pipeline.parameters.commit_hash >>
+      - PR_NUMBER: << pipeline.parameters.pr_number >>
     steps:
       - checkout
+      - log-trigger-context
       - configure-artifactory
       - install-packages
       - run-smoke-tests
@@ -115,8 +157,12 @@ jobs:
       - NODE_ENV: test
       - CIRCLE_BRANCH: << pipeline.git.branch >>
       - CIRCLE_BUILD_NUM: << pipeline.number >>
+      - SERVICE_NAME: << pipeline.parameters.service_name >>
+      - COMMIT_HASH: << pipeline.parameters.commit_hash >>
+      - PR_NUMBER: << pipeline.parameters.pr_number >>
     steps:
       - checkout
+      - log-trigger-context
       - configure-artifactory
       - install-packages
       - run-integration-tests
@@ -135,8 +181,10 @@ jobs:
       - image: nexus.company.com/api-test-core:2.1.0
     environment:
       - NODE_ENV: test
+      - SERVICE_NAME: << pipeline.parameters.service_name >>
     steps:
       - checkout
+      - log-trigger-context
       - configure-artifactory
       - install-packages
       - run-all-tests
@@ -187,3 +235,10 @@ workflows:
             branches:
               only:
                 - main
+
+  # Triggered via GitHub Actions when PR label 'deployAndRunTests' is added
+  # Payload: { service_name, commit_hash, pr_number, run_integration_tests: true }
+  triggered-by-github-actions:
+    when: << pipeline.parameters.run_integration_tests >>
+    jobs:
+      - integration-tests

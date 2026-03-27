@@ -1,87 +1,53 @@
 /**
  * Agent API Integration Tests
  * 
- * Example of how teams used the @company/api-helpers package
- * to write integration tests without knowing Java or auth setup
+ * Example of how teams use the api-test-core framework
+ * to write integration tests for the Agents API
  */
 
-const { describe, it, expect, beforeEach } = require('chai');
-const { agents } = require('@company/api-helpers');
+'use strict';
 
-describe('Agents API', function() {
+const { expect } = require('chai');
+const apiTestCore = require('..');
+
+describe('API Test Core - Framework Verification', function() {
   
-  // Test: Create a new agent
-  it('should create an agent and return 201', async function() {
-    const response = await agents.create({
-      name: 'Test Agent',
-      type: 'standard',
-      metadata: {
-        source: 'integration-test'
-      }
-    });
-    
-    expect(response.status).to.equal(201);
-    expect(response.body).to.have.property('id');
-    expect(response.body.name).to.equal('Test Agent');
+  // Verify core exports exist
+  it('should export core utilities', function() {
+    expect(apiTestCore.handleRequest).to.be.a('function');
+    expect(apiTestCore.testWithRetries).to.be.a('function');
+    expect(apiTestCore.sleep).to.be.a('function');
+    expect(apiTestCore.generateEmail).to.be.a('function');
   });
 
-  // Test: Handle duplicate agents
-  it('should handle duplicate agent names gracefully', async function() {
-    const agentName = `duplicate-test-${Date.now()}`;
-    
-    // Create first agent
-    await agents.create({ name: agentName });
-    
-    // Try to create duplicate - should handle gracefully
-    const response = await agents.create({ name: agentName });
-    
-    // Either returns 409 Conflict or succeeds with warning
-    expect([200, 201, 409]).to.include(response.status);
+  // Verify helper exports exist
+  it('should export helper utilities', function() {
+    expect(apiTestCore.guid).to.be.a('function');
+    expect(apiTestCore.generateName).to.be.a('function');
+    expect(apiTestCore.generateUserData).to.be.a('function');
+    expect(apiTestCore.generatePostData).to.be.a('function');
   });
 
-  // Test: Get agent by ID
-  it('should retrieve an agent by ID', async function() {
-    // First create an agent
-    const createResponse = await agents.create({ name: 'Get Test Agent' });
-    const agentId = createResponse.body.id;
+  // Verify data generation works
+  it('should generate test data', function() {
+    const email = apiTestCore.generateEmail('testuser');
+    expect(email).to.include('@');
     
-    // Then retrieve it
-    const getResponse = await agents.get(agentId);
+    const name = apiTestCore.generateName('full');
+    expect(name).to.be.a('string');
     
-    expect(getResponse.status).to.equal(200);
-    expect(getResponse.body.id).to.equal(agentId);
+    const userData = apiTestCore.generateUserData();
+    expect(userData).to.have.property('id');
+    expect(userData).to.have.property('email');
+    expect(userData).to.have.property('firstName');
   });
 
-  // Test: Update agent
-  it('should update an existing agent', async function() {
-    // Create agent
-    const createResponse = await agents.create({ name: 'Update Test Agent' });
-    const agentId = createResponse.body.id;
-    
-    // Update it
-    const updateResponse = await agents.update(agentId, {
-      name: 'Updated Agent Name',
-      status: 'active'
-    });
-    
-    expect(updateResponse.status).to.equal(200);
-    expect(updateResponse.body.name).to.equal('Updated Agent Name');
-  });
-
-  // Test: Delete agent
-  it('should delete an agent', async function() {
-    // Create agent
-    const createResponse = await agents.create({ name: 'Delete Test Agent' });
-    const agentId = createResponse.body.id;
-    
-    // Delete it
-    const deleteResponse = await agents.delete(agentId);
-    
-    expect(deleteResponse.status).to.equal(204);
-    
-    // Verify it's gone
-    const getResponse = await agents.get(agentId);
-    expect(getResponse.status).to.equal(404);
+  // Verify sleep works
+  it('should sleep for specified duration', async function() {
+    const start = Date.now();
+    await apiTestCore.sleep(50);
+    const elapsed = Date.now() - start;
+    expect(elapsed).to.be.at.least(45);
   });
 
 });

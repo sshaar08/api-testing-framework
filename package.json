@@ -2,32 +2,25 @@
   "name": "@company/api-test-core",
   "version": "2.1.0",
   "description": "Core API testing framework for integration tests",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "index.js",
   "scripts": {
-    "build": "tsc",
-    "test": "mocha",
-    "test:integration": "pnpm run build && mocha --config .mocharc.yml 'src/**/*.test.ts'",
-    "test:smoke": "mocha --config .mocharc.yml 'src/**/*.smoke.ts'",
-    "test:all": "mocha --config .mocharc.yml 'src/**/*.test.ts' --reporter=junit --reporter-output=./test-results/results.xml",
-    "lint": "eslint src --ext .ts",
-    "typecheck": "tsc --noEmit"
+    "test": "mocha --config .mocharc.json",
+    "test:integration": "mocha --config .mocharc.json 'src/**/*.test.js' --reporter=junit --reporter-output=./test-results/results.xml",
+    "test:smoke": "mocha --config .mocharc.json 'src/**/*.test.js' --grep 'smoke'",
+    "test:all": "mocha --config .mocharc.json 'src/**/*.test.js' --reporter=junit --reporter-output=./test-results/results.xml",
+    "lint": "eslint src --ext .js"
   },
   "dependencies": {
-    "@company/api-helpers": "^2.0.0",
+    "axios": "^1.13.6",
+    "dotenv": "^16.0.0",
+    "ramda": "^0.29.0",
     "superagent": "^8.0.0",
-    "dotenv": "^16.0.0"
+    "uuid": "^9.0.0"
   },
   "devDependencies": {
-    "@types/node": "^18.0.0",
-    "@types/mocha": "^10.0.0",
-    "typescript": "^5.0.0",
-    "mocha": "^10.0.0",
-    "mocha-junit-reporter": "^2.0.0",
     "chai": "^4.3.0",
-    "eslint": "^8.0.0",
-    "@typescript-eslint/parser": "^5.0.0",
-    "@typescript-eslint/eslint-plugin": "^5.0.0"
+    "mocha": "^10.0.0",
+    "mocha-junit-reporter": "^2.0.0"
   },
   "engines": {
     "node": ">=18.0.0"
