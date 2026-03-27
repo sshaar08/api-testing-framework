@@ -5,13 +5,13 @@
  * to write integration tests without knowing Java or auth setup
  */
 
-import { describe, it, expect, beforeEach } from 'chai';
-import { agents } from '@company/api-helpers';
+const { describe, it, expect, beforeEach } = require('chai');
+const { agents } = require('@company/api-helpers');
 
-describe('Agents API', () => {
+describe('Agents API', function() {
   
   // Test: Create a new agent
-  it('should create an agent and return 201', async () => {
+  it('should create an agent and return 201', async function() {
     const response = await agents.create({
       name: 'Test Agent',
       type: 'standard',
@@ -26,7 +26,7 @@ describe('Agents API', () => {
   });
 
   // Test: Handle duplicate agents
-  it('should handle duplicate agent names gracefully', async () => {
+  it('should handle duplicate agent names gracefully', async function() {
     const agentName = `duplicate-test-${Date.now()}`;
     
     // Create first agent
@@ -40,7 +40,7 @@ describe('Agents API', () => {
   });
 
   // Test: Get agent by ID
-  it('should retrieve an agent by ID', async () => {
+  it('should retrieve an agent by ID', async function() {
     // First create an agent
     const createResponse = await agents.create({ name: 'Get Test Agent' });
     const agentId = createResponse.body.id;
@@ -53,7 +53,7 @@ describe('Agents API', () => {
   });
 
   // Test: Update agent
-  it('should update an existing agent', async () => {
+  it('should update an existing agent', async function() {
     // Create agent
     const createResponse = await agents.create({ name: 'Update Test Agent' });
     const agentId = createResponse.body.id;
@@ -69,7 +69,7 @@ describe('Agents API', () => {
   });
 
   // Test: Delete agent
-  it('should delete an agent', async () => {
+  it('should delete an agent', async function() {
     // Create agent
     const createResponse = await agents.create({ name: 'Delete Test Agent' });
     const agentId = createResponse.body.id;

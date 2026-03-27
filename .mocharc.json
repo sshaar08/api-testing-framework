@@ -1,5 +1,10 @@
 {
-  "spec": ["test/**/*.test.js"],
+  "spec": ["test/**/*.test.js", "src/**/*.test.js"],
   "timeout": 10000,
-  "reporter": "spec"
+  "reporter": "spec",
+  "reporter-options": {
+    "mocha-junit-reporter": {
+      "toConsole": true
+    }
+  }
 }
