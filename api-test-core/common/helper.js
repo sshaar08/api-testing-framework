@@ -1,19 +1,19 @@
 /**
  * Utility Helper Functions for API Testing
  * 
- * Contains only the helpers actually used in tests.
+ * Uses @faker-js/faker for realistic test data generation.
  */
 
 'use strict';
 
-const { v4: uuidv4 } = require('uuid');
+const { faker } = require('@faker-js/faker');
 
 /**
- * Generate a unique identifier (UUID v4, stripped)
+ * Generate a unique identifier (UUID v4)
  * @returns {string} UUID string
  */
 function guid() {
-  return uuidv4().replace(/-/g, '');
+  return faker.string.uuid();
 }
 
 /**
@@ -22,12 +22,7 @@ function guid() {
  * @returns {string} Identifier string
  */
 function generateId(length = 15) {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  let result = '';
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
+  return faker.string.alphanumeric(length);
 }
 
 /**
@@ -37,7 +32,7 @@ function generateId(length = 15) {
  * @returns {string} Generated email
  */
 function generateEmail(prefix = 'test', domain = 'test.com') {
-  return `${prefix}_${guid(10)}@${domain}`;
+  return faker.internet.email({ firstName: prefix });
 }
 
 /**
@@ -45,10 +40,7 @@ function generateEmail(prefix = 'test', domain = 'test.com') {
  * @returns {string} Random phone number
  */
 function generatePhoneNumber() {
-  const areaCode = Math.floor(Math.random() * 900) + 100;
-  const prefix = Math.floor(Math.random() * 900) + 100;
-  const lineNum = Math.floor(Math.random() * 9000) + 1000;
-  return `+1${areaCode}${prefix}${lineNum}`;
+  return faker.phone.number();
 }
 
 /**
@@ -57,18 +49,9 @@ function generatePhoneNumber() {
  * @returns {string} Random name
  */
 function generateName(type = 'full') {
-  const firstNames = ['James', 'Mary', 'John', 'Patricia', 'Robert', 'Jennifer', 
-                      'Michael', 'Linda', 'William', 'Elizabeth', 'David', 'Susan',
-                      'Joseph', 'Jessica', 'Thomas', 'Sarah', 'Charles', 'Karen'];
-  const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia',
-                    'Miller', 'Davis', 'Rodriguez', 'Martinez', 'Hernandez', 'Lopez'];
-
-  const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
-  const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
-
-  if (type === 'first') return firstName;
-  if (type === 'last') return lastName;
-  return `${firstName} ${lastName}`;
+  if (type === 'first') return faker.person.firstName();
+  if (type === 'last') return faker.person.lastName();
+  return faker.person.fullName();
 }
 
 /**
@@ -78,7 +61,7 @@ function generateName(type = 'full') {
  * @returns {number} Random integer
  */
 function randomInt(min = 0, max = 100) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+  return faker.number.int({ min, max });
 }
 
 /**
@@ -89,11 +72,11 @@ function randomInt(min = 0, max = 100) {
 function generateUserData(overrides = {}) {
   const defaults = {
     id: guid(),
-    email: generateEmail(),
-    firstName: generateName('first'),
-    lastName: generateName('last'),
-    phone: generatePhoneNumber(),
-    username: generateId(8),
+    email: faker.internet.email(),
+    firstName: faker.person.firstName(),
+    lastName: faker.person.lastName(),
+    phone: faker.phone.number(),
+    username: faker.internet.username(),
     createdAt: new Date().toISOString(),
     active: true,
   };
@@ -108,8 +91,8 @@ function generateUserData(overrides = {}) {
  */
 function generatePostData(overrides = {}) {
   const defaults = {
-    title: `Test Post ${guid(6)}`,
-    body: `This is a test post body with some content. ID: ${guid()}`,
+    title: faker.lorem.sentence(),
+    body: faker.lorem.paragraph(),
     userId: randomInt(1, 10),
   };
   
@@ -123,9 +106,9 @@ function generatePostData(overrides = {}) {
  */
 function generateCommentData(overrides = {}) {
   const defaults = {
-    name: generateName('full'),
-    email: generateEmail(),
-    body: `Test comment body. ID: ${guid()}`,
+    name: faker.person.fullName(),
+    email: faker.internet.email(),
+    body: faker.lorem.sentence(),
     postId: randomInt(1, 100),
   };
   
