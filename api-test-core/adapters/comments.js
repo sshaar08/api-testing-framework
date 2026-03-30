@@ -27,37 +27,40 @@ const commentsClient = axios.create({
 /**
  * Get all comments
  * getAll :: (Object?) -> Promise
- * @param {Object} options - { params: { postId } }
+ * @param {Object} headers - Optional auth headers
  */
-async function getAll(options = {}) {
-  return commentsClient.get('/', options);
+async function getAll(headers = {}) {
+  return commentsClient.get('/', headers);
 }
 
 /**
  * Get comments for a post
- * getByPost :: (Number) -> Promise
+ * getByPost :: (Number, Object?) -> Promise
  * @param {number} postId - Post ID
+ * @param {Object} headers - Optional auth headers
  */
-async function getByPost(postId) {
-  return commentsClient.get('/', { params: { postId } });
+async function getByPost(postId, headers = {}) {
+  return commentsClient.get('/', { params: { postId }, ...headers });
 }
 
 /**
  * Get single comment by ID
- * getById :: (Number) -> Promise
+ * getById :: (Number, Object?) -> Promise
  * @param {number} id - Comment ID
+ * @param {Object} headers - Optional auth headers
  */
-async function getById(id) {
-  return commentsClient.get(`/${id}`);
+async function getById(id, headers = {}) {
+  return commentsClient.get(`/${id}`, headers);
 }
 
 /**
  * Create new comment
- * create :: (Object) -> Promise
+ * create :: (Object, Object?) -> Promise
  * @param {Object} commentData - { name, email, body, postId }
+ * @param {Object} headers - Optional auth headers
  */
-async function create(commentData) {
-  return commentsClient.post('/', commentData);
+async function create(commentData, headers = {}) {
+  return commentsClient.post('/', commentData, headers);
 }
 
 module.exports = {

@@ -24,19 +24,21 @@ const usersClient = axios.create({
 
 /**
  * Get all users
- * getAll :: () -> Promise
+ * getAll :: (Object?) -> Promise
+ * @param {Object} headers - Optional auth headers
  */
-async function getAll() {
-  return usersClient.get('/');
+async function getAll(headers = {}) {
+  return usersClient.get('/', headers);
 }
 
 /**
  * Get single user by ID
- * getById :: (Number) -> Promise
+ * getById :: (Number, Object?) -> Promise
  * @param {number} id - User ID
+ * @param {Object} headers - Optional auth headers
  */
-async function getById(id) {
-  return usersClient.get(`/${id}`);
+async function getById(id, headers = {}) {
+  return usersClient.get(`/${id}`, headers);
 }
 
 module.exports = {

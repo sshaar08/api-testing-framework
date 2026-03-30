@@ -30,76 +30,84 @@ const postsClient = axios.create({
 
 /**
  * Get all posts
- * getAll :: (Object?) -> Promise
- * @param {Object} options - { params: { userId } }
+ * getAll :: (Object?, Object?) -> Promise
+ * @param {Object} params - { userId } query params
+ * @param {Object} headers - Optional auth headers
  */
-async function getAll(options = {}) {
-  return postsClient.get('/', options);
+async function getAll(params = {}, headers = {}) {
+  return postsClient.get('/', { params, ...headers });
 }
 
 /**
  * Get single post by ID
- * getById :: (Number) -> Promise
+ * getById :: (Number, Object?) -> Promise
  * @param {number} id - Post ID
+ * @param {Object} headers - Optional auth headers
  */
-async function getById(id) {
-  return postsClient.get(`/${id}`);
+async function getById(id, headers = {}) {
+  return postsClient.get(`/${id}`, headers);
 }
 
 /**
  * Get comments for a post
- * getComments :: (Number) -> Promise
+ * getComments :: (Number, Object?) -> Promise
  * @param {number} postId - Post ID
+ * @param {Object} headers - Optional auth headers
  */
-async function getComments(postId) {
-  return postsClient.get(`/${postId}/comments`);
+async function getComments(postId, headers = {}) {
+  return postsClient.get(`/${postId}/comments`, headers);
 }
 
 /**
  * Get posts by user
- * getByUser :: (Number) -> Promise
+ * getByUser :: (Number, Object?) -> Promise
  * @param {number} userId - User ID
+ * @param {Object} headers - Optional auth headers
  */
-async function getByUser(userId) {
-  return postsClient.get('/', { params: { userId } });
+async function getByUser(userId, headers = {}) {
+  return postsClient.get('/', { params: { userId }, ...headers });
 }
 
 /**
  * Create new post
- * create :: (Object) -> Promise
+ * create :: (Object, Object?) -> Promise
  * @param {Object} postData - { title, body, userId }
+ * @param {Object} headers - Optional auth headers
  */
-async function create(postData) {
-  return postsClient.post('/', postData);
+async function create(postData, headers = {}) {
+  return postsClient.post('/', postData, headers);
 }
 
 /**
  * Update existing post
- * update :: (Number, Object) -> Promise
+ * update :: (Number, Object, Object?) -> Promise
  * @param {number} id - Post ID
  * @param {Object} postData - Updated post data
+ * @param {Object} headers - Optional auth headers
  */
-async function update(id, postData) {
-  return postsClient.put(`/${id}`, postData);
+async function update(id, postData, headers = {}) {
+  return postsClient.put(`/${id}`, postData, headers);
 }
 
 /**
  * Patch existing post (partial update)
- * patch :: (Number, Object) -> Promise
+ * patch :: (Number, Object, Object?) -> Promise
  * @param {number} id - Post ID  
  * @param {Object} postData - Partial post data
+ * @param {Object} headers - Optional auth headers
  */
-async function patch(id, postData) {
-  return postsClient.patch(`/${id}`, postData);
+async function patch(id, postData, headers = {}) {
+  return postsClient.patch(`/${id}`, postData, headers);
 }
 
 /**
  * Delete post
- * remove :: (Number) -> Promise
+ * remove :: (Number, Object?) -> Promise
  * @param {number} id - Post ID
+ * @param {Object} headers - Optional auth headers
  */
-async function remove(id) {
-  return postsClient.delete(`/${id}`);
+async function remove(id, headers = {}) {
+  return postsClient.delete(`/${id}`, headers);
 }
 
 module.exports = {

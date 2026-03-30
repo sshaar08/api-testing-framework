@@ -36,17 +36,6 @@ function createApiClient() {
     },
   });
   
-  // Add request interceptor for auth
-  client.interceptors.request.use((config) => {
-    if (config.apiKey) {
-      config.headers['X-API-Key'] = config.apiKey;
-    }
-    if (config.authToken) {
-      config.headers['Authorization'] = `Bearer ${config.authToken}`;
-    }
-    return config;
-  });
-  
   return client;
 }
 
