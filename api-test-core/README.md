@@ -7,20 +7,19 @@ A Node.js integration testing framework for APIs with built-in authentication, r
 - **Built with**: Node.js, SuperAgent, Mocha, Chai
 - **Auth support**: JWT, API Key, Basic Auth
 - **Features**: Automatic retry logic, parallel requests, test data generation
-- **CI/CD**: CircleCI + GitHub Actions, Docker container, JUnit XML reporting
 
-## Quick Start
-
-### Install
+## Install
 
 ```bash
-npm install api-test-core
+npm install
 ```
+
+## Quick Start
 
 ### Write a Test
 
 ```javascript
-const apiTestCore = require('api-test-core');
+const apiTestCore = require('./index.js');
 const { posts, handleRequest, generatePostData } = apiTestCore;
 
 describe('API Tests', () => {
@@ -29,7 +28,7 @@ describe('API Tests', () => {
     const response = await handleRequest(posts.create(testPost));
     
     console.log(response.status); // 201
-    console.log(response.data);    // { id, title, body, userId }
+    console.log(response.data);   // { id, title, body, userId }
   });
 });
 ```
@@ -53,7 +52,7 @@ Supported auth types: **JWT**, **API Key**, **Basic Auth**
 ### Test Data Generation
 
 ```javascript
-const { generatePostData, generateUserData, generateEmail } = require('api-test-core');
+const { generatePostData, generateUserData, generateEmail } = require('./index.js');
 
 const post = generatePostData();
 // { id: '...', title: '...', body: '...', userId: 1 }
@@ -85,73 +84,17 @@ const results = await apiTestCore.handleMultipleRequests(requests);
 
 ## API Adapters
 
-The framework includes adapters for common API patterns:
-
 | Adapter | Methods |
 |---------|---------|
 | `posts` | `getAll()`, `getById(id)`, `getByUser(userId)`, `create(data)`, `update(id, data)`, `patch(id, data)`, `remove(id)` |
-| `users` | `getAll()`, `getById(id)`, getByUsername(username)` |
+| `users` | `getAll()`, `getById(id)`, `getByUsername(username)` |
 | `comments` | `getByPost(postId)`, `create(data)` |
 
-## Repository Structure
-
-```
-api-testing-framework/
-├── api-test-core/           # The npm package
-│   ├── index.js            # Main entry point
-│   ├── config.js           # Configuration
-│   ├── common/
-│   │   ├── core.js        # Request handling, retry logic
-│   │   ├── authentication.js  # Auth helpers
-│   │   └── helper.js       # Test data generation
-│   ├── adapters/           # API adapters (posts, users, comments)
-│   ├── test/              # Framework tests
-│   │   ├── posts.test.js
-│   │   ├── users.test.js
-│   │   └── comments.test.js
-│   ├── docker/            # Docker image
-│   └── .circleci/         # CircleCI config
-├── demo/                   # Demo app (shows package import)
-│   └── test/
-│       └── demo.test.js
-├── .github/workflows/     # GitHub Actions
-└── .gitignore
-```
-
-## Running Tests
-
-### Framework Tests
+## Run Tests
 
 ```bash
-cd api-test-core
 npm install
 npm test
-```
-
-### Demo App
-
-```bash
-cd demo
-npm install
-npm test
-```
-
-## CI/CD Pipeline
-
-| Job | Trigger | Purpose |
-|-----|---------|---------|
-| smoke-tests | Every PR | Fast critical path tests |
-| integration-tests | Every PR | Full test suite |
-| nightly-tests | Daily | Comprehensive run |
-
-### GitHub Actions Trigger
-
-Add the `deployAndRunTests` label to a PR to trigger CircleCI:
-
-```yaml
-# .github/workflows/pr-label-trigger.yml
-- Triggers CircleCI when PR is labeled
-- Posts PR comment with test results
 ```
 
 ## Test Results
@@ -173,6 +116,22 @@ Add the `deployAndRunTests` label to a PR to trigger CircleCI:
   24 passing
 ```
 
-## License
+## Structure
 
-Internal use - Compass
+```
+api-test-core/
+├── index.js              # Main entry point
+├── config.js             # Configuration
+├── common/
+│   ├── core.js          # Request handling, retry logic
+│   ├── authentication.js # JWT, API Key, Basic Auth
+│   └── helper.js        # Test data generation
+├── adapters/             # API adapters
+│   ├── posts.js
+│   ├── users.js
+│   └── comments.js
+└── test/                 # Framework tests
+    ├── posts.test.js
+    ├── users.test.js
+    └── comments.test.js
+```
