@@ -135,3 +135,7 @@ api-test-core/
     ├── users.test.js
     └── comments.test.js
 ```
+
+## License
+
+Licensed under the Apache License 2.0

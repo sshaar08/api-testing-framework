@@ -98,4 +98,4 @@ api-testing-framework/
 
 ## License
 
-Internal use - Compass
+Licensed under the Apache License 2.0
