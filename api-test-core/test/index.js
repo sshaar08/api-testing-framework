@@ -5,4 +5,8 @@
 
 'use strict';
 
-module.exports = require('./posts.test.js');
+module.exports = [
+  require('./posts.test.js'),
+  require('./users.test.js'),
+  require('./comments.test.js'),
+];
