@@ -1,0 +1,16 @@
+{
+  "name": "api-test-demo",
+  "version": "1.0.0",
+  "description": "Demo app showing how to use api-test-core package",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha --reporter spec 'test/**/*.test.js'"
+  },
+  "dependencies": {
+    "api-test-core": "file:../api-test-core"
+  },
+  "devDependencies": {
+    "chai": "^4.3.0",
+    "mocha": "^10.0.0"
+  }
+}

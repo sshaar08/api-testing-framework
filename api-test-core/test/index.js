@@ -1,12 +1,8 @@
 /**
  * Test Suite Index
- * Entry point for running all tests
+ * Entry point for running framework tests
  */
 
 'use strict';
 
-module.exports = [
-  require('./posts.test.js'),
-  require('./users.test.js'),
-  require('./comments.test.js'),
-];
+module.exports = require('./posts.test.js');
