@@ -14,8 +14,6 @@
     "@faker-js/faker": "^10.4.0",
     "axios": "^1.13.6",
     "dotenv": "^16.0.0",
-    "ramda": "^0.29.0",
-    "superagent": "^8.0.0",
     "uuid": "^9.0.0"
   },
   "devDependencies": {
